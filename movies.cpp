@@ -4,3 +4,7 @@ bool AlphabeticalOrdering::operator()(const Movie& lhs, const Movie& rhs) const 
     // cpp apparently already has lexographic string ordering
     return lhs.name < rhs.name;
 }
+
+bool RatingOrdering::operator()(const Movie& lhs, const Movie& rhs) const {
+    return lhs.rating < rhs.rating;
+}

@@ -16,4 +16,9 @@ public:
     bool operator()(const Movie& lhs, const Movie& rhs) const;
 };
 
+class RatingOrdering {
+public:
+    bool operator()(const Movie& lhs, const Movie& rhs) const;
+};
+
 #endif

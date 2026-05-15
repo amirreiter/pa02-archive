@@ -76,11 +76,52 @@ int main(int argc, char** argv){
     //  For each prefix,
     //  Find all movies that have that prefix and store them in an appropriate data structure
     //  If no movie with that prefix exists print the following message
-    cout << "No movies found with prefix "<<"<replace with prefix>" << endl;
+
+    // this is the worst variable definition i've ever written but the compiler will not stop complaining
+    // unless i specify every single template parameter
+    vector<priority_queue<Movie, vector<Movie>, RatingOrdering>> prefixed_movies(prefixes.size(), priority_queue<Movie, vector<Movie>, RatingOrdering>());
+
+    for (size_t i = 0; i < prefixes.size(); i++) {
+        string& p = prefixes[i];
+
+        // movies are already sorted by lexographic order, find first which begins to match
+        auto it = movies.lower_bound(Movie(p, 0.0));
+
+        while (it != movies.end() && it->name.compare(0, p.size(), p) == 0) {
+            prefixed_movies[i].push(*it);
+            ++it;
+        }
+
+        if (prefixed_movies[i].size() == 0) {
+            cout << "No movies found with prefix " << p << endl;
+        }
+    }
+
+    // For each prefix
+    // Print the movies by prefix in descending order.
+    auto prefixed_movies_copy = prefixed_movies;
+    for (size_t i = 0; i < prefixes.size(); i++) {
+        auto mdb = prefixed_movies_copy[i];
+        while (!mdb.empty()) {
+            auto m = mdb.top();
+            mdb.pop();
+
+            cout << m.name << " " << m.rating << endl;
+        }
+        cout << endl;
+    }
 
     //  For each prefix,
     //  Print the highest rated movie with that prefix if it exists.
-    cout << "Best movie with prefix " << "<replace with prefix>" << " is: " << "replace with movie name" << " with rating " << std::fixed << std::setprecision(1) << "replace with movie rating" << endl;
+    for (size_t i = 0; i < prefixes.size(); i++) {
+        string& p = prefixes[i];
+        auto mdb = &prefixed_movies[i];
+
+        if (mdb->size() != 0) {
+            auto m = &mdb->top();
+            cout << "Best movie with prefix " << p << " is: " << m->name << " with rating " << std::fixed << std::setprecision(1) << m->rating << endl;
+        }
+    }
 
     return 0;
 }
