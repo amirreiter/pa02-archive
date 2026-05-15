@@ -1,6 +1,7 @@
-// Winter'24
+// Spring '26
 // Instructor: Diba Mirza
-// Student name: 
+// Student name: Amir Reiter
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -28,13 +29,12 @@ int main(int argc, char** argv){
     }
 
     ifstream movieFile (argv[1]);
- 
     if (movieFile.fail()){
         cerr << "Could not open file " << argv[1];
         exit(1);
     }
-  
     // Create an object of a STL data-structure to store all the movies
+    std::set<Movie, AlphabeticalOrdering> movies;
 
     string line, movieName;
     double movieRating;
@@ -44,12 +44,18 @@ int main(int argc, char** argv){
             // to construct your Movie objects
             // cout << movieName << " has rating " << movieRating << endl;
             // insert elements into your data structure
+            movies.insert(
+                Movie(movieName, movieRating)
+            );
     }
 
     movieFile.close();
 
     if (argc == 2){
             //print all the movies in ascending alphabetical order of movie names
+            for (auto m : movies) {
+                std::cout << m.name << ", " << m.rating << "\n";
+            }
             return 0;
     }
 
