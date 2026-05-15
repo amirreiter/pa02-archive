@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <ctime>
 #include <vector>
 #include <cstring>
@@ -17,12 +18,16 @@ using namespace std;
 #include "utilities.h"
 #include "movies.h"
 
-bool parseLine(string &line, string &movieName, double &movieRating);
+bool parseLine(string &line, string_view &movieName, double &movieRating);
 
 int main(int argc, char** argv){
+    // prevent buffer from flushing on every newline
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
     if (argc < 2){
-        cerr << "Not enough arguments provided (need at least 1 argument)." << endl;
-        cerr << "Usage: " << argv[ 0 ] << " moviesFilename prefixFilename " << endl;
+        cerr << "Not enough arguments provided (need at least 1 argument)." << '\n';
+        cerr << "Usage: " << argv[ 0 ] << " moviesFilename prefixFilename " << '\n';
         exit(1);
     }
 
@@ -34,24 +39,23 @@ int main(int argc, char** argv){
     // Create an object of a STL data-structure to store all the movies
     std::set<Movie, AlphabeticalOrdering> movies;
 
-    string line, movieName;
+    string line;
+    string_view movieName; // string view is faster, zero copy
     double movieRating;
     // Read each file and store the name and rating
     while (getline (movieFile, line) && parseLine(line, movieName, movieRating)){
             // Use std::string movieName and double movieRating
             // to construct your Movie objects
-            // cout << movieName << " has rating " << movieRating << endl;
+            // cout << movieName << " has rating " << movieRating << '\n';
             // insert elements into your data structure
-            movies.insert(
-                Movie(movieName, movieRating)
-            );
+            movies.emplace(movieName, movieRating);
     }
 
     movieFile.close();
 
     if (argc == 2){
             //print all the movies in ascending alphabetical order of movie names
-            for (auto m : movies) {
+            for (const auto& m : movies) {
                 std::cout << m.name << ", " << m.rating << "\n";
             }
             return 0;
@@ -65,6 +69,7 @@ int main(int argc, char** argv){
     }
 
     vector<string> prefixes;
+    
     while (getline (prefixFile, line)) {
         if (!line.empty()) {
             prefixes.push_back(line);
@@ -91,33 +96,40 @@ int main(int argc, char** argv){
         }
 
         if (prefixed_movies[i].size() == 0) {
-            cout << "No movies found with prefix " << p << endl;
+            cout << "No movies found with prefix " << p << '\n';
         }
     }
 
+    vector<Movie> winners(prefixes.size(), Movie("", 0.0));
+
     // For each prefix
     // Print the movies by prefix in descending order.
-    auto prefixed_movies_copy = prefixed_movies;
+    // Save the winner for later
     for (size_t i = 0; i < prefixes.size(); i++) {
-        auto mdb = prefixed_movies_copy[i];
+        auto& mdb = prefixed_movies[i];
+        
+        bool first = true;
         while (!mdb.empty()) {
             auto m = mdb.top();
             mdb.pop();
 
-            cout << m.name << " " << m.rating << endl;
+            if (first) {
+                winners[i] = m;
+                first = false;
+            }
+
+            cout << m.name << " " << m.rating << '\n';
         }
-        cout << endl;
+        cout << '\n';
     }
 
     //  For each prefix,
     //  Print the highest rated movie with that prefix if it exists.
     for (size_t i = 0; i < prefixes.size(); i++) {
         string& p = prefixes[i];
-        auto mdb = &prefixed_movies[i];
-
-        if (mdb->size() != 0) {
-            auto m = &mdb->top();
-            cout << "Best movie with prefix " << p << " is: " << m->name << " with rating " << std::fixed << std::setprecision(1) << m->rating << endl;
+        if (winners[i].name != "") {
+            auto m = &winners[i];
+            cout << "Best movie with prefix " << p << " is: " << m->name << " with rating " << std::fixed << std::setprecision(1) << m->rating << '\n';
         }
     }
 
@@ -126,10 +138,12 @@ int main(int argc, char** argv){
 
 /* Add your run time analysis for part 3 of the assignment here as commented block*/
 
-bool parseLine(string &line, string &movieName, double &movieRating) {
-    int commaIndex = line.find_last_of(",");
-    movieName = line.substr(0, commaIndex);
-    movieRating = stod(line.substr(commaIndex+1));
+bool parseLine(std::string &line, std::string_view &movieName, double &movieRating) {
+    size_t commaIndex = line.find_last_of(',');
+    char* endPtr;
+    movieRating = std::strtod(line.data() + commaIndex + 1, &endPtr);
+    std::string_view lineView = line;
+    movieName = lineView.substr(0, commaIndex);
     if (movieName[0] == '\"') {
         movieName = movieName.substr(1, movieName.length() - 2);
     }

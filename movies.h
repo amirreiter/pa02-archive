@@ -2,13 +2,14 @@
 #define MOVIES_H
 
 #include <string>
+#include <string_view>
 
 class Movie {
 public:
     std::string name;
     double rating;
 
-    Movie(std::string name, double rating) : name(name), rating(rating) {};
+    Movie(std::string_view name, double rating) : name(name), rating(rating) {};
 };
 
 class AlphabeticalOrdering {
