@@ -18,7 +18,7 @@ using namespace std;
 #include "utilities.h"
 #include "movies.h"
 
-bool parseLine(string &line, string_view &movieName, double &movieRating);
+bool parseLine(string &line, string_view &movieName, float &movieRating);
 
 int main(int argc, char** argv){
     // prevent buffer from flushing on every newline
@@ -41,10 +41,10 @@ int main(int argc, char** argv){
 
     string line;
     string_view movieName; // string view is faster, zero copy
-    double movieRating;
+    float movieRating;
     // Read each file and store the name and rating
     while (getline (movieFile, line) && parseLine(line, movieName, movieRating)){
-            // Use std::string movieName and double movieRating
+            // Use std::string movieName and float movieRating
             // to construct your Movie objects
             // cout << movieName << " has rating " << movieRating << '\n';
             // insert elements into your data structure
@@ -127,9 +127,9 @@ int main(int argc, char** argv){
     //  Print the highest rated movie with that prefix if it exists.
     for (size_t i = 0; i < prefixes.size(); i++) {
         string& p = prefixes[i];
-        if (winners[i].name != "") {
-            auto m = &winners[i];
-            cout << "Best movie with prefix " << p << " is: " << m->name << " with rating " << std::fixed << std::setprecision(1) << m->rating << '\n';
+        if (!winners[i].name.empty()) {
+            auto& m = winners[i];
+            cout << "Best movie with prefix " << p << " is: " << m.name << " with rating " << std::fixed << std::setprecision(1) << m.rating << '\n';
         }
     }
 
@@ -138,7 +138,7 @@ int main(int argc, char** argv){
 
 /* Add your run time analysis for part 3 of the assignment here as commented block*/
 
-bool parseLine(std::string &line, std::string_view &movieName, double &movieRating) {
+bool parseLine(std::string &line, std::string_view &movieName, float &movieRating) {
     size_t commaIndex = line.find_last_of(',');
     char* endPtr;
     movieRating = std::strtod(line.data() + commaIndex + 1, &endPtr);

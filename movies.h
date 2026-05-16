@@ -7,7 +7,7 @@
 class Movie {
 public:
     std::string name;
-    double rating;
+    float rating;
 
     Movie(std::string_view name, double rating) : name(name), rating(rating) {};
 };
