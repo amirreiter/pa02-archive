@@ -6,5 +6,12 @@ bool AlphabeticalOrdering::operator()(const Movie& lhs, const Movie& rhs) const 
 }
 
 bool RatingOrdering::operator()(const Movie& lhs, const Movie& rhs) const {
-    return lhs.rating < rhs.rating;
+    // regular ordering
+    if (lhs.rating != rhs.rating) {
+        return lhs.rating < rhs.rating;
+    }
+    
+    // lexographic ordering if they have the same rating
+    // this is because lhs will always be lexographically "less" than rhs
+    return lhs.name > rhs.name;
 }
