@@ -93,11 +93,6 @@ int main(int argc, char** argv){
             prefixed_movies[i].push(*it);
             ++it;
         }
-
-        if (prefixed_movies[i].empty()) {
-            //  If no movie with that prefix exists print the following message
-            cout << "No movies found with prefix " << p << '\n';
-        }
     }
 
     vector<Movie> winners(prefixes.size(), Movie("", 0.0));
@@ -118,9 +113,14 @@ int main(int argc, char** argv){
                 first = false;
             }
 
-            cout << m.name << " " << m.rating << '\n';
+            cout << m.name << ", " << std::fixed << std::setprecision(1) << m.rating << '\n';
         }
-        cout << '\n';
+
+        if (!first) {
+            cout << '\n';
+        } else {
+            cout << "No movies found with prefix " << prefixes[i] << '\n';
+        }
     }
 
     //  For each prefix,
