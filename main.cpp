@@ -2,6 +2,7 @@
 // Instructor: Diba Mirza
 // Student name: Amir Reiter
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -11,8 +12,6 @@
 #include <cstring>
 #include <limits.h>
 #include <iomanip>
-#include <set>
-#include <queue>
 using namespace std;
 
 #include "utilities.h"
@@ -21,6 +20,9 @@ using namespace std;
 bool parseLine(string &line, string_view &movieName, float &movieRating);
 
 int main(int argc, char** argv){
+    auto alphabetordering = AlphabeticalOrdering();
+    auto ratingordering = RatingOrdering();
+
     // prevent buffer from flushing on every newline
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
@@ -37,7 +39,7 @@ int main(int argc, char** argv){
         exit(1);
     }
     // Create an object of a STL data-structure to store all the movies
-    std::set<Movie, AlphabeticalOrdering> movies;
+    std::vector<Movie> movies;
 
     string line;
     string_view movieName; // string view is faster, zero copy
@@ -48,8 +50,10 @@ int main(int argc, char** argv){
             // to construct your Movie objects
             // cout << movieName << " has rating " << movieRating << '\n';
             // insert elements into your data structure
-            movies.emplace(movieName, movieRating);
+            movies.emplace_back(movieName, movieRating);
     }
+
+    std::sort(movies.begin(), movies.end(), alphabetordering);
 
     movieFile.close();
 
@@ -81,21 +85,24 @@ int main(int argc, char** argv){
 
     // this is the worst variable definition i've ever written but the compiler will not stop complaining
     // unless i specify every single template parameter
-    vector<priority_queue<Movie, vector<Movie>, RatingOrdering>> prefixed_movies(prefixes.size(), priority_queue<Movie, vector<Movie>, RatingOrdering>());
+    // vector<priority_queue<Movie, vector<Movie>, RatingOrdering>> prefixed_movies(prefixes.size(), priority_queue<Movie, vector<Movie>, RatingOrdering>());
+
+    vector<vector<Movie>> prefixed_movies;
+    prefixed_movies.resize(prefixes.size());
 
     for (size_t i = 0; i < prefixes.size(); i++) {
         string& p = prefixes[i];
 
         // movies are already sorted by lexographic order, find first which begins to match
-        auto it = movies.lower_bound(Movie(p, 0.0));
+        auto it = lower_bound(movies.begin(), movies.end(), Movie(p, 0.0), alphabetordering);
 
         while (it != movies.end() && it->name.compare(0, p.size(), p) == 0) {
-            prefixed_movies[i].push(*it);
+            prefixed_movies[i].push_back(*it);
             ++it;
         }
-    }
 
-    vector<Movie> winners(prefixes.size(), Movie("", 0.0));
+        std::sort(prefixed_movies[i].rbegin(), prefixed_movies[i].rend(), ratingordering);
+    }
 
     // For each prefix
     // Print the movies by prefix in descending order.
@@ -103,20 +110,11 @@ int main(int argc, char** argv){
     for (size_t i = 0; i < prefixes.size(); i++) {
         auto& mdb = prefixed_movies[i];
         
-        bool first = true;
-        while (!mdb.empty()) {
-            auto m = mdb.top();
-            mdb.pop();
-
-            if (first) {
-                winners[i] = m;
-                first = false;
-            }
-
+        for (auto& m : mdb) {
             cout << m.name << ", " << std::fixed << std::setprecision(1) << m.rating << '\n';
         }
 
-        if (!first) {
+        if (!mdb.empty()) {
             cout << '\n';
         } else {
             cout << "No movies found with prefix " << prefixes[i] << '\n';
@@ -127,8 +125,8 @@ int main(int argc, char** argv){
     //  Print the highest rated movie with that prefix if it exists.
     for (size_t i = 0; i < prefixes.size(); i++) {
         string& p = prefixes[i];
-        if (!winners[i].name.empty()) {
-            auto& m = winners[i];
+        if (!prefixed_movies[i].empty()) {
+            auto& m = prefixed_movies[i][0];
             cout << "Best movie with prefix " << p << " is: " << m.name
                 << " with rating " << std::fixed << std::setprecision(1)
                 << m.rating << '\n';
