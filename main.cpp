@@ -158,22 +158,48 @@ Foreword:
     required to insert into std::set and the lexographical comparisons. Thus,
     k and l are not factors in the runtime analysis.
 
+Secondary Foreword:
+    As a result of part 3a (optimizing for performance), each answer has an
+    answer regarding my initial implementation and a secondary answer explaining
+    the code as it is currently written, to show the. progression of how my
+    thinking changed over the course of working this problem.
+
+    In addition, I've added a section at the end for non algorithmic
+    optimizations and how they contributed to the runtime.
 
                              -- Part 3a --
 
-(1) To print all the movies in ascending alphabetical takes O(n) because the
-std::set is implemented as a binary tree which is already lexographically
-sorted. This means that printing the movies in ascending order is a simple
-in-order traversal, which takes O(n).
+(1) My initial implementation used std::set: To print all the movies in
+ascending alphabetical takes O(n) because the std::set is implemented as a
+binary tree which is already lexographically sorted. This means that printing
+the movies in ascending order is a simple in-order traversal, which takes O(n).
+
+    After optimizing for speed, I realized that the bst std::set implementation
+    was a major performance hurdle due to cache locality. I ended up replacing
+    it with a sorted vector. This has very similar advantages to a bst, where
+    iterating over the list in order is O(n), but it maintains cpu cache
+    locality in the late stage of the sorting process. Moreover, iteration over
+    the vector also becomes very cache-friendly.
 
 (2) For the second task (printing the movies by prefix in descending rating
-order), I chose to create vector of priority queues to get the best performance
-characteristics of both ADTs. The vector gives O(1) indexing for a particular
-prefix, and is structured such that it aligns with the order of vector for
-prefixes. Each bucket in the vector owns a priority queue for the rating-ordered
-list. Since popping from the queue is O(logn), printing the whole queue in order
-is O(n logn), and looping over the entire list of prefixes is O(m). Thus this,
-portion of the algorithm executes in O(m n logn).
+order), I initially chose to create vector of priority queues to get the best
+performance characteristics of both ADTs. The vector gives O(1) indexing for a
+particular prefix, and is structured such that it aligns with the order of
+vector for prefixes. Each bucket in the vector owns a priority queue for the
+rating-ordered list. Since popping from the queue is O(logn), printing the whole
+queue in order is O(n logn), and looping over the entire list of prefixes is
+O(m). Thus this, portion of the algorithm executes in O(m n logn).
+
+    After optimizing for speed, a vector of sorted vectors ended up being
+    faster. I have two theories as for why: Firstly, the algorithmic complexity
+    for priority queue insertion and deletion is not great. Vectors give O(1)
+    insertion and deletion, whereas sorting them is the hardest task. However,
+    a single O(n logn) sort seems to be better than O(n logn) insertion PLUS
+    O(n logn) deletion, making it O(2n logn) in total since for performance we
+    care about the coefficients. Secondly, the nature of the priority queue
+    means only the ordering of the top is guarenteed, which means popping is
+    required to iterate, and thus a secondary vector is required to remember the
+    winning scores for each prefix.
 
 (3) For the third task (printing the highest rated movie with that prefix if it
 exists) we take advantage of the priority queue from (2) and save the first item
@@ -181,19 +207,22 @@ we pop into a vector of movies which is likewise aligned to the order of the
 vector of prefixes. Thus, getting the best performer is a simple O(1) index,
 which happens for m prefixes thus making the third task O(m).
 
+    After optimizing for speed, we no longer use a priority queue, and we can
+    re-use our sorted vector from the beginning, which preserves O(1) top index.
+
 Benchmarks (Apple Silicon M1 Max):
 
     > time ./runMovies input_20_random.csv prefix_large.txt
-        0.01s user 0.03s system 41% cpu 0.087 total
+        0.01s user 0.01s system 32% cpu 0.060 total
     
     > time ./runMovies input_100_random.csv prefix_large.txt
-        0.01s user 0.03s system 39% cpu 0.099 total
+        0.01s user 0.01s system 31% cpu 0.062 total
     
     > time ./runMovies input_1000_random.csv prefix_large.txt
-        0.01s user 0.03s system 38% cpu 0.098 total
+        0.01s user 0.01s system 25% cpu 0.085 total
 
     > time ./runMovies input_76920_random.csv prefix_large.txt
-        0.08s user 0.08s system 56% cpu 0.286 total
+        0.06s user 0.06s system 41% cpu 0.302 total
 
                              -- Part 3b --
 
@@ -206,18 +235,14 @@ Then, we need the top rated movies per prefix.
 Not one single data structure is suited for these tasks. However, the ordering
 of these tasks presents opportunities for restructuring the data efficiently.
 
-First, we put the data into an std::set, sorted lexographically. This takes S(n)
+First, we put the data into a lexographically sorted vector. This takes S(n)
 spaces as we have n movies.
 
-From there, we move the data to a vector of priority queues. The vector is sized
+From there, we move the data to a vector of sorted vectors. The vector is sized
 according to the number of prefixes, so of size m, and at most each priority
 queue can have k members, including duplicates since a movie may be a part of
 more than one prefix. Therfore the space complexity of this data structure is
 S(km) worst case.
-
-From there, we pop items off of the priority queues, saving only the best rating
-movie for each prefix. Since they are stored in a vectors sized in accordance
-with the prefixes vector, this is S(m).
 
 Tangent:
 
@@ -226,14 +251,14 @@ Tangent:
     what counts as runtime complexity, and relate to the selection of these ADTs
     in the first place.
 
-    The lexographic std::set allows to quickly locate the start and ends of
-    lexographic matches when we're moving from the std::set to the vec of
-    priority queues. Moreover, the iteration from the set to the vec is linear
+    The lexographicly sorted vector allows to quickly locate the start and ends
+    of lexographic matches when we're moving from the first vector to the vec
+    of vectors. Moreover, the iteration from the set to the vec is linear
     because all lexographic matches must be an a continuous in-order sequence
-    inside the set.
+    inside the first vector.
 
-    From there, saving the top performers in the priority queues is trivial as
-    we can just save the first value we pop from them.
+    From there, accessing the top performers in the rating-sorted vectors
+    is O(1)
 
     The ADTs are not just fast for their specific phase in the assignment, they
     also quickly and efficiently transition to the next ADT.
@@ -264,6 +289,25 @@ which this decision had a major impact on the algorithm.
 I would also say that I had no specific target time complexity, but
 throughout the assignment I was looking in the O(1) to O(n logn) range for
 each part of the assignment.
+
+Non-complexity related performance improvements:
+
+    I benchmarked the executable on my machine with Samply, a sampling profiler.
+
+    1. I changed the data loading to string_view to prevent unnecessary data
+       copying when loading in the data. In addition, I used a different string
+       to float conversion function afterwards.
+    
+    2. I pre-allocated vectors when their size was known beforehand. For
+       example, when initializing the vector for prefixes matches, the length
+       is already known since the vector of prefixes has a known size. This
+       prevents expensive resizing operations on complex ADTs.
+
+    Further improvements that could be made in the future include loading all
+    input files into memory and only referencing them with string_views, thus
+    avoiding any copying from occuring. I have yet to do this because i'm less
+    familiar with C++ I/O and i'm also unsure if the added pointer hopping would
+    result in greater slowdowns.
 
 */
 
