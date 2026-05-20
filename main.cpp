@@ -40,6 +40,7 @@ int main(int argc, char** argv){
     }
     // Create an object of a STL data-structure to store all the movies
     std::vector<Movie> movies;
+    movies.reserve(76920);
 
     // Read each file and store the name and rating
     // updated this to be zero-copy
@@ -76,6 +77,7 @@ int main(int argc, char** argv){
     }
 
     vector<string_view> prefixes;
+    prefixes.reserve(17578);
 
     // updated this to be zero-copy
     read_anchor = 0;
@@ -106,7 +108,7 @@ int main(int argc, char** argv){
     // unless i specify every single template parameter
     // vector<priority_queue<Movie, vector<Movie>, RatingOrdering>> prefixed_movies(prefixes.size(), priority_queue<Movie, vector<Movie>, RatingOrdering>());
 
-    vector<vector<Movie*>> prefixed_movies;
+    vector<vector<Movie>> prefixed_movies;
     prefixed_movies.resize(prefixes.size());
 
     for (size_t i = 0; i < prefixes.size(); i++) {
@@ -116,7 +118,7 @@ int main(int argc, char** argv){
         auto it = lower_bound(movies.begin(), movies.end(), Movie(p, 0.0), alphabetordering);
 
         while (it != movies.end() && it->name.compare(0, p.size(), p) == 0) {
-            prefixed_movies[i].push_back(&(*it)); // weird casting to stop compiler from complaining
+            prefixed_movies[i].push_back(*it); // weird casting to stop compiler from complaining
             ++it;
         }
 
@@ -130,7 +132,7 @@ int main(int argc, char** argv){
         auto& mdb = prefixed_movies[i];
 
         for (auto& m : mdb) {
-            cout << m->name << ", " << std::fixed << std::setprecision(1) << m->rating << '\n';
+            cout << m.name << ", " << std::fixed << std::setprecision(1) << m.rating << '\n';
         }
 
         if (!mdb.empty()) {
@@ -146,9 +148,9 @@ int main(int argc, char** argv){
         string_view p = prefixes[i];
         if (!prefixed_movies[i].empty()) {
             auto& m = prefixed_movies[i][0];
-            cout << "Best movie with prefix " << p << " is: " << m->name
+            cout << "Best movie with prefix " << p << " is: " << m.name
                 << " with rating " << std::fixed << std::setprecision(1)
-                << m->rating << '\n';
+                << m.rating << '\n';
         }
     }
 
@@ -338,7 +340,7 @@ Non-complexity related performance improvements:
 
 */
 
-Movie parseLine(std::string_view line) {
+inline Movie parseLine(std::string_view line) {
     size_t commaIndex = line.find_last_of(',');
     char* endPtr;
     float movieRating = std::strtod(line.data() + commaIndex + 1, &endPtr);

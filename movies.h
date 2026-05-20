@@ -19,9 +19,7 @@ public:
 
 class RatingOrdering {
 public:
-    // because we're manually pointimg to movies this has to be
-    // const Movie* and not const Movie&
-    bool operator()(const Movie* lhs, const Movie* rhs) const;
+    bool operator()(const Movie& lhs, const Movie& rhs) const;
 };
 
 #endif
