@@ -44,27 +44,17 @@ int main(int argc, char** argv){
     // Read each file and store the name and rating
     // updated this to be zero-copy
     size_t read_anchor = 0;
-    size_t read_head = 0;
-    while (read_head < movieFileView.size()) {
-        if (movieFile[read_head] == '\n' || read_head == movieFileView.size() - 1) {
-            if (read_head == movieFileView.size() - 1) {
-                read_head++;
-            }
-
-            string_view line = movieFileView.substr(read_anchor, read_head - read_anchor);
-
-            while (!line.empty() && (line.back() == '\n' || line.back() == ' ')) {
-                line.remove_suffix(1);
-            }
-
-            if (!line.empty()) {
-                movies.push_back(parseLine(line));
-            }
-
-            read_anchor = read_head + 1;
+    while (read_anchor < movieFileView.size()) {
+        size_t next_newline = movieFileView.find('\n', read_anchor);
+        if (next_newline == std::string_view::npos) {
+            next_newline = movieFileView.size();
         }
 
-        read_head++;
+        std::string_view line = movieFileView.substr(read_anchor, next_newline - read_anchor);
+
+        movies.push_back(parseLine(line));
+
+        read_anchor = next_newline + 1;
     }
 
     std::sort(movies.begin(), movies.end(), alphabetordering);
@@ -89,29 +79,25 @@ int main(int argc, char** argv){
 
     // updated this to be zero-copy
     read_anchor = 0;
-    read_head = 0;
-    while (read_head < prefixFileView.size()) {
-        if (prefixFile[read_head] == '\n' || read_head == prefixFileView.size() - 1) {
-            if (read_head == prefixFileView.size() - 1) {
-                read_head++;
-            }
-
-            string_view line = prefixFileView.substr(read_anchor, read_head - read_anchor);
-
-            // weird ghost prefix that wasn't showing up before
-            while (!line.empty() && (line.back() == '\n' || line.back() == ' ')) {
-                line.remove_suffix(1);
-            }
-
-            if (!line.empty()) {
-                prefixes.push_back(line);
-            }
-
-            read_anchor = read_head + 1;
+    while (read_anchor < prefixFileView.size()) {
+        size_t next_newline = prefixFileView.find('\n', read_anchor);
+        if (next_newline == std::string_view::npos) {
+            next_newline = prefixFileView.size();
         }
 
-        read_head++;
+        std::string_view line = prefixFileView.substr(read_anchor, next_newline - read_anchor);
+
+        if (!line.empty()) {
+            prefixes.push_back(line);
+        }
+
+        read_anchor = next_newline + 1;
     }
+
+    // for debugging
+        // cout << "'" << prefixes.back() << "'\n";
+        // cout << "'" << movies.back().name << "'\n";
+        // return 0;
 
     //  For each prefix,
     //  Find all movies that have that prefix and store them in an appropriate data structure
