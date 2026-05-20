@@ -53,7 +53,13 @@ int main(int argc, char** argv){
 
             string_view line = movieFileView.substr(read_anchor, read_head - read_anchor);
 
-            movies.push_back(parseLine(line));
+            while (!line.empty() && (line.back() == '\n' || line.back() == ' ')) {
+                line.remove_suffix(1);
+            }
+
+            if (!line.empty()) {
+                movies.push_back(parseLine(line));
+            }
 
             read_anchor = read_head + 1;
         }
@@ -92,7 +98,14 @@ int main(int argc, char** argv){
 
             string_view line = prefixFileView.substr(read_anchor, read_head - read_anchor);
 
-            prefixes.push_back(line);
+            // weird ghost prefix that wasn't showing up before
+            while (!line.empty() && (line.back() == '\n' || line.back() == ' ')) {
+                line.remove_suffix(1);
+            }
+
+            if (!line.empty()) {
+                prefixes.push_back(line);
+            }
 
             read_anchor = read_head + 1;
         }

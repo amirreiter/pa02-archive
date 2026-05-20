@@ -1,6 +1,6 @@
 # -Ofast is deprecated :/
-# CXX_FLAGS = -std=c++20 -Ofast
-CXX_FLAGS = -std=c++20 -O3 -ffast-math
+CXX_FLAGS = -std=c++20 -Ofast
+# CXX_FLAGS = -std=c++20 -O3 -ffast-math -Wall -Wpedantic
 
 all: runMovies
 

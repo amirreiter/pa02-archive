@@ -20,7 +20,7 @@ std::string read_file_to_string(const std::string& path) {
     file_buffer.resize(size);
 
     // reading
-    std::fread(&file_buffer[0], 1, size, fp);
+    size_t x = std::fread(&file_buffer[0], 1, size, fp);
     std::fclose(fp);
 
     return file_buffer;
