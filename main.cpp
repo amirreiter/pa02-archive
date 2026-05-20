@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <string_view>
 #include <ctime>
@@ -17,7 +16,7 @@ using namespace std;
 #include "utilities.h"
 #include "movies.h"
 
-bool parseLine(string &line, string_view &movieName, float &movieRating);
+Movie parseLine(std::string_view line);
 
 int main(int argc, char** argv){
     auto alphabetordering = AlphabeticalOrdering();
@@ -33,29 +32,36 @@ int main(int argc, char** argv){
         exit(1);
     }
 
-    ifstream movieFile (argv[1]);
-    if (movieFile.fail()){
+    string movieFile = read_file_to_string(argv[1]); // must live for entire app
+    string_view movieFileView(movieFile);
+    if (movieFile.empty()){
         cerr << "Could not open file " << argv[1];
         exit(1);
     }
     // Create an object of a STL data-structure to store all the movies
     std::vector<Movie> movies;
 
-    string line;
-    string_view movieName; // string view is faster, zero copy
-    float movieRating;
     // Read each file and store the name and rating
-    while (getline (movieFile, line) && parseLine(line, movieName, movieRating)){
-            // Use std::string movieName and float movieRating
-            // to construct your Movie objects
-            // cout << movieName << " has rating " << movieRating << '\n';
-            // insert elements into your data structure
-            movies.emplace_back(movieName, movieRating);
+    // updated this to be zero-copy
+    size_t read_anchor = 0;
+    size_t read_head = 0;
+    while (read_head < movieFileView.size()) {
+        if (movieFile[read_head] == '\n' || read_head == movieFileView.size() - 1) {
+            if (read_head == movieFileView.size() - 1) {
+                read_head++;
+            }
+
+            string_view line = movieFileView.substr(read_anchor, read_head - read_anchor);
+
+            movies.push_back(parseLine(line));
+
+            read_anchor = read_head + 1;
+        }
+
+        read_head++;
     }
 
     std::sort(movies.begin(), movies.end(), alphabetordering);
-
-    movieFile.close();
 
     if (argc == 2){
             //print all the movies in ascending alphabetical order of movie names
@@ -65,19 +71,33 @@ int main(int argc, char** argv){
             return 0;
     }
 
-    ifstream prefixFile (argv[2]);
+    string prefixFile = read_file_to_string(argv[2]);  // must live for entire app
+    string_view prefixFileView(prefixFile);
 
-    if (prefixFile.fail()) {
+    if (prefixFile.empty()) {
         cerr << "Could not open file " << argv[2];
         exit(1);
     }
 
-    vector<string> prefixes;
-    
-    while (getline (prefixFile, line)) {
-        if (!line.empty()) {
+    vector<string_view> prefixes;
+
+    // updated this to be zero-copy
+    read_anchor = 0;
+    read_head = 0;
+    while (read_head < prefixFileView.size()) {
+        if (prefixFile[read_head] == '\n' || read_head == prefixFileView.size() - 1) {
+            if (read_head == prefixFileView.size() - 1) {
+                read_head++;
+            }
+
+            string_view line = prefixFileView.substr(read_anchor, read_head - read_anchor);
+
             prefixes.push_back(line);
+
+            read_anchor = read_head + 1;
         }
+
+        read_head++;
     }
 
     //  For each prefix,
@@ -87,17 +107,17 @@ int main(int argc, char** argv){
     // unless i specify every single template parameter
     // vector<priority_queue<Movie, vector<Movie>, RatingOrdering>> prefixed_movies(prefixes.size(), priority_queue<Movie, vector<Movie>, RatingOrdering>());
 
-    vector<vector<Movie>> prefixed_movies;
+    vector<vector<Movie*>> prefixed_movies;
     prefixed_movies.resize(prefixes.size());
 
     for (size_t i = 0; i < prefixes.size(); i++) {
-        string& p = prefixes[i];
+        string_view p = prefixes[i];
 
         // movies are already sorted by lexographic order, find first which begins to match
         auto it = lower_bound(movies.begin(), movies.end(), Movie(p, 0.0), alphabetordering);
 
         while (it != movies.end() && it->name.compare(0, p.size(), p) == 0) {
-            prefixed_movies[i].push_back(*it);
+            prefixed_movies[i].push_back(&(*it)); // weird casting to stop compiler from complaining
             ++it;
         }
 
@@ -109,9 +129,9 @@ int main(int argc, char** argv){
     // Save the winner for later
     for (size_t i = 0; i < prefixes.size(); i++) {
         auto& mdb = prefixed_movies[i];
-        
+
         for (auto& m : mdb) {
-            cout << m.name << ", " << std::fixed << std::setprecision(1) << m.rating << '\n';
+            cout << m->name << ", " << std::fixed << std::setprecision(1) << m->rating << '\n';
         }
 
         if (!mdb.empty()) {
@@ -124,12 +144,12 @@ int main(int argc, char** argv){
     //  For each prefix,
     //  Print the highest rated movie with that prefix if it exists.
     for (size_t i = 0; i < prefixes.size(); i++) {
-        string& p = prefixes[i];
+        string_view p = prefixes[i];
         if (!prefixed_movies[i].empty()) {
             auto& m = prefixed_movies[i][0];
-            cout << "Best movie with prefix " << p << " is: " << m.name
+            cout << "Best movie with prefix " << p << " is: " << m->name
                 << " with rating " << std::fixed << std::setprecision(1)
-                << m.rating << '\n';
+                << m->rating << '\n';
         }
     }
 
@@ -159,7 +179,7 @@ Foreword:
     k and l are not factors in the runtime analysis.
 
 Secondary Foreword:
-    As a result of part 3a (optimizing for performance), each answer has an
+    As a result of part 3 (optimizing for performance), each answer has an
     answer regarding my initial implementation and a secondary answer explaining
     the code as it is currently written, to show the. progression of how my
     thinking changed over the course of working this problem.
@@ -186,20 +206,20 @@ order), I initially chose to create vector of priority queues to get the best
 performance characteristics of both ADTs. The vector gives O(1) indexing for a
 particular prefix, and is structured such that it aligns with the order of
 vector for prefixes. Each bucket in the vector owns a priority queue for the
-rating-ordered list. Since popping from the queue is O(logn), printing the whole
-queue in order is O(n logn), and looping over the entire list of prefixes is
-O(m). Thus this, portion of the algorithm executes in O(m n logn).
+rating-ordered list. Since popping from the queue is O(logk), printing the whole
+queue in order is O(k logk), and looping over the entire list of prefixes is
+O(m). Thus this, portion of the algorithm executes in O(m k logk).
 
     After optimizing for speed, a vector of sorted vectors ended up being
     faster. I have two theories as for why: Firstly, the algorithmic complexity
     for priority queue insertion and deletion is not great. Vectors give O(1)
     insertion and deletion, whereas sorting them is the hardest task. However,
-    a single O(n logn) sort seems to be better than O(n logn) insertion PLUS
-    O(n logn) deletion, making it O(2n logn) in total since for performance we
-    care about the coefficients. Secondly, the nature of the priority queue
+    a single O(k logk) sort seems to be better than O(k logk) insertion PLUS
+    O(k logk) deletion, making it O(2n logn) in total. For wall-to-wall runtime
+    we care about the coefficients. Secondly, the nature of the priority queue
     means only the ordering of the top is guarenteed, which means popping is
-    required to iterate, and thus a secondary vector is required to remember the
-    winning scores for each prefix.
+    required to iterate, and thus a secondary vector is required to remember
+    the winning scores for each prefix.
 
 (3) For the third task (printing the highest rated movie with that prefix if it
 exists) we take advantage of the priority queue from (2) and save the first item
@@ -213,16 +233,16 @@ which happens for m prefixes thus making the third task O(m).
 Benchmarks (Apple Silicon M1 Max):
 
     > time ./runMovies input_20_random.csv prefix_large.txt
-        0.01s user 0.01s system 32% cpu 0.060 total
-    
+        0.01s user 0.03s system 92% cpu 0.037 total
+
     > time ./runMovies input_100_random.csv prefix_large.txt
-        0.01s user 0.01s system 31% cpu 0.062 total
-    
+        0.01s user 0.03s system 93% cpu 0.039 total
+
     > time ./runMovies input_1000_random.csv prefix_large.txt
-        0.01s user 0.01s system 25% cpu 0.085 total
+        0.01s user 0.03s system 93% cpu 0.044 total
 
     > time ./runMovies input_76920_random.csv prefix_large.txt
-        0.06s user 0.06s system 41% cpu 0.302 total
+        0.07s user 0.08s system 97% cpu 0.158 total
 
                              -- Part 3b --
 
@@ -270,55 +290,62 @@ complexity, as this assignment was specifically about execution speed, and
 had no target space complexity. I can think of two specific scenarios in
 which this decision had a major impact on the algorithm.
 
-1. When sorting movies by prefix AND rating, I opted to duplicate data in
-    order to make the querying fast. This is a waste of space, but makes
-    the algorithm fast.
+1. When sorting movies by prefix AND rating, originally I duplicated data to
+   make the index fast, but this came at the cost of wasting space as each
+   movie owned its own string. Now with zero-copy logic, each Movie becomes a
+   Movie*, meaning that although our big S growth remains the same for these
+   copies, their coefficent's become 1 because all pointers have the same size.
 
 2. Any ADT to do with prefixes assumes every prefix has movies that are
-    associated with it. This is not all bad, because a vector or priority
-    queue of size 0 only consumes stack space, as they allocate on the first
-    push. One could debate whether a hashmap would help solve this, but
-    although I didn't benchmark memory usage I would recon this would not be
-    helpful for the following reasons: Firstly, the hashmap reallocates
-    as it grows, just like a vector, which is very costly. It might help to
-    reserve a percentage of the size of prefixes, but given that if we're
-    wrong and most vector/hashmap reallocation strategies tend to double
-    their capacity on resize, so we might end up OVER allocating which is
-    worse than the simple vector lookup implementation.
+   associated with it. This is not all bad, because a vector or priority
+   queue of size 0 only consumes stack space, as they allocate on the first
+   push. One could debate whether a hashmap would help solve this, but
+   although I didn't benchmark memory usage I would recon this would not be
+   helpful for the following reasons: Firstly, the hashmap reallocates
+   as it grows, just like a vector, which is very costly. It might help to
+   reserve a percentage of the size of prefixes, but given that if we're
+   wrong and most vector/hashmap reallocation strategies tend to double
+   their capacity on resize, so we might end up OVER allocating which is
+   worse than the simple vector lookup implementation.
 
 I would also say that I had no specific target time complexity, but
 throughout the assignment I was looking in the O(1) to O(n logn) range for
-each part of the assignment.
+each part of the assignment, and kept iterating until I landed the lowest time
+complexity I could think of. I was always willing to sacrifice space complexity
+if it made the big O or wall-to-wall timing faster. In the end, though, not
+duplicating data has its own performance improvements.
 
 Non-complexity related performance improvements:
 
-    I benchmarked the executable on my machine with Samply, a sampling profiler.
+    I benchmarked the executable on my machine with Samply, a sampling profiler,
+    to identify specific bottlenecks beyond the broad algorthmic architecutre
 
-    1. I changed the data loading to string_view to prevent unnecessary data
-       copying when loading in the data. In addition, I used a different string
-       to float conversion function afterwards.
-    
+    1. I changed the data loading to be completely zero-copy. All strings are
+       views into the larger file, ensuring there are no duplicated strings or
+       copying of strings.
+
     2. I pre-allocated vectors when their size was known beforehand. For
        example, when initializing the vector for prefixes matches, the length
        is already known since the vector of prefixes has a known size. This
        prevents expensive resizing operations on complex ADTs.
 
-    Further improvements that could be made in the future include loading all
-    input files into memory and only referencing them with string_views, thus
-    avoiding any copying from occuring. I have yet to do this because i'm less
-    familiar with C++ I/O and i'm also unsure if the added pointer hopping would
-    result in greater slowdowns.
+    3. When benchmarking with Samply I noticed a significant portion of the wall
+       time was spent on I/O. Per this post on StackOverflow:
+           https://stackoverflow.com/questions/43051948/why-is-stdcout-so-time-consuming
+       Depending on the operating system, cout can be really slow by hammering
+       the terminal, trying to flush whatever internal buffer it has repeatedly
+       on every newline. This is a simple 2-line fix, which is at the top of the
+       main function.
 
 */
 
-bool parseLine(std::string &line, std::string_view &movieName, float &movieRating) {
+Movie parseLine(std::string_view line) {
     size_t commaIndex = line.find_last_of(',');
     char* endPtr;
-    movieRating = std::strtod(line.data() + commaIndex + 1, &endPtr);
-    std::string_view lineView = line;
-    movieName = lineView.substr(0, commaIndex);
+    float movieRating = std::strtod(line.data() + commaIndex + 1, &endPtr);
+    std::string_view movieName = line.substr(0, commaIndex);
     if (movieName[0] == '\"') {
         movieName = movieName.substr(1, movieName.length() - 2);
     }
-    return true;
+    return Movie(movieName, movieRating);
 }

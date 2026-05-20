@@ -6,8 +6,8 @@
 
 class Movie {
 public:
-    std::string name;
-    float rating;
+    std::string_view name;
+    double rating;
 
     Movie(std::string_view name, double rating) : name(name), rating(rating) {};
 };
@@ -19,7 +19,9 @@ public:
 
 class RatingOrdering {
 public:
-    bool operator()(const Movie& lhs, const Movie& rhs) const;
+    // because we're manually pointimg to movies this has to be
+    // const Movie* and not const Movie&
+    bool operator()(const Movie* lhs, const Movie* rhs) const;
 };
 
 #endif
