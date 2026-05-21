@@ -10,7 +10,6 @@
 #include <vector>
 #include <cstring>
 #include <limits.h>
-#include <iomanip>
 using namespace std;
 
 #include "utilities.h"
@@ -34,6 +33,7 @@ int main(int argc, char** argv){
 
     string movieFile = read_file_to_string(argv[1]); // must live for entire app
     string_view movieFileView(movieFile);
+
     if (movieFile.empty()){
         cerr << "Could not open file " << argv[1];
         exit(1);
@@ -52,7 +52,6 @@ int main(int argc, char** argv){
         }
 
         std::string_view line = movieFileView.substr(read_anchor, next_newline - read_anchor);
-
         movies.push_back(parseLine(line));
 
         read_anchor = next_newline + 1;
@@ -60,12 +59,24 @@ int main(int argc, char** argv){
 
     std::sort(movies.begin(), movies.end(), alphabetordering);
 
+    std::string out;
+    out.reserve(8000000);
+
     if (argc == 2){
-            //print all the movies in ascending alphabetical order of movie names
-            for (const auto& m : movies) {
-                std::cout << m.name << ", " << m.rating << "\n";
-            }
-            return 0;
+        for (const auto& m : movies) {
+            out += m.name;
+            out += ", ";
+
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", m.rating);
+
+            out += buf;
+            out += '\n';
+        }
+
+        fwrite(out.data(), 1, out.size(), stdout);
+
+        return 0;
     }
 
     string prefixFile = read_file_to_string(argv[2]);  // must live for entire app
@@ -83,6 +94,7 @@ int main(int argc, char** argv){
     read_anchor = 0;
     while (read_anchor < prefixFileView.size()) {
         size_t next_newline = prefixFileView.find('\n', read_anchor);
+
         if (next_newline == std::string_view::npos) {
             next_newline = prefixFileView.size();
         }
@@ -107,53 +119,71 @@ int main(int argc, char** argv){
     // this is the worst variable definition i've ever written but the compiler will not stop complaining
     // unless i specify every single template parameter
     // vector<priority_queue<Movie, vector<Movie>, RatingOrdering>> prefixed_movies(prefixes.size(), priority_queue<Movie, vector<Movie>, RatingOrdering>());
-
-    vector<vector<Movie>> prefixed_movies;
-    prefixed_movies.resize(prefixes.size());
+    vector<Movie> winners; // only store winners, allocate vec in loop, avoids space blowout
+    winners.reserve(prefixes.size());
 
     for (size_t i = 0; i < prefixes.size(); i++) {
         string_view p = prefixes[i];
 
-        // movies are already sorted by lexographic order, find first which begins to match
-        auto it = lower_bound(movies.begin(), movies.end(), Movie(p, 0.0), alphabetordering);
-
-        while (it != movies.end() && it->name.compare(0, p.size(), p) == 0) {
-            prefixed_movies[i].push_back(*it); // weird casting to stop compiler from complaining
-            ++it;
+        auto begin = lower_bound(
+            movies.begin(),
+            movies.end(),
+            Movie(p, 0.0),
+            alphabetordering
+        );
+        auto end = begin;
+        // prevents us from having to memcmp the strings like we used to
+        // only 1 simple memcmp per loop
+        while ((end != movies.end() && end->name.compare(0, p.size(), p) == 0)) {
+            ++end;
         }
 
-        std::sort(prefixed_movies[i].rbegin(), prefixed_movies[i].rend(), ratingordering);
+        if (begin == end) {
+            out += "No movies found with prefix ";
+            out += p;
+            out += '\n';
+
+            winners.push_back(Movie("", 0.0));
+
+            continue;
+        }
+
+        vector<Movie> subset(begin, end);
+        sort(subset.rbegin(), subset.rend(), ratingordering);
+
+        winners.push_back(subset[0]);
+
+        for (auto& m : subset) {
+            out += m.name;
+            out += ", ";
+
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", m.rating);
+
+            out += buf;
+            out += '\n';
+        }
+
+        out += '\n';
     }
 
-    // For each prefix
-    // Print the movies by prefix in descending order.
-    // Save the winner for later
     for (size_t i = 0; i < prefixes.size(); i++) {
-        auto& mdb = prefixed_movies[i];
+        if (!winners[i].name.empty()) {
+            out += "Best movie with prefix ";
+            out += prefixes[i];
+            out += " is: ";
+            out += winners[i].name;
+            out += " with rating ";
 
-        for (auto& m : mdb) {
-            cout << m.name << ", " << std::fixed << std::setprecision(1) << m.rating << '\n';
-        }
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", winners[i].rating);
 
-        if (!mdb.empty()) {
-            cout << '\n';
-        } else {
-            cout << "No movies found with prefix " << prefixes[i] << '\n';
-        }
-    }
-
-    //  For each prefix,
-    //  Print the highest rated movie with that prefix if it exists.
-    for (size_t i = 0; i < prefixes.size(); i++) {
-        string_view p = prefixes[i];
-        if (!prefixed_movies[i].empty()) {
-            auto& m = prefixed_movies[i][0];
-            cout << "Best movie with prefix " << p << " is: " << m.name
-                << " with rating " << std::fixed << std::setprecision(1)
-                << m.rating << '\n';
+            out += buf;
+            out += '\n';
         }
     }
 
+    fwrite(out.data(), 1, out.size(), stdout);
     return 0;
 }
 
@@ -234,16 +264,16 @@ which happens for m prefixes thus making the third task O(m).
 Benchmarks (Apple Silicon M1 Max):
 
     > time ./runMovies input_20_random.csv prefix_large.txt
-        0.01s user 0.03s system 92% cpu 0.037 total
+        0.01s user 0.02s system 91% cpu 0.031 total
 
     > time ./runMovies input_100_random.csv prefix_large.txt
-        0.01s user 0.03s system 93% cpu 0.039 total
+        0.01s user 0.02s system 92% cpu 0.033 total
 
     > time ./runMovies input_1000_random.csv prefix_large.txt
-        0.01s user 0.03s system 93% cpu 0.044 total
+        0.01s user 0.03s system 93% cpu 0.036 total
 
     > time ./runMovies input_76920_random.csv prefix_large.txt
-        0.07s user 0.08s system 97% cpu 0.158 total
+        0.06s user 0.08s system 97% cpu 0.139 total
 
                              -- Part 3b --
 
@@ -336,7 +366,8 @@ Non-complexity related performance improvements:
        Depending on the operating system, cout can be really slow by hammering
        the terminal, trying to flush whatever internal buffer it has repeatedly
        on every newline. This is a simple 2-line fix, which is at the top of the
-       main function.
+       main function. Another I/O optimization is using our own string buffer
+       and using sprintf to format floats, flushing only at the very end.
 
 */
 
