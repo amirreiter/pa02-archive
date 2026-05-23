@@ -58,8 +58,11 @@ int main(int argc, char** argv){
         read_anchor = next_newline + 1;
     }
 
-    // std::sort(movies.begin(), movies.end(), alphabetordering);
-    lexisort_fast(movies);
+    if (movies.size() > 1000) {
+        std::sort(movies.begin(), movies.end(), alphabetordering);
+    } else {
+        lexisort_fast(movies);
+    }
 
     std::string out;
     out.reserve(8000000);
@@ -126,57 +129,12 @@ int main(int argc, char** argv){
     vector<Movie> winners; // only store winners, allocate vec in loop, avoids space blowout
     winners.reserve(prefixes.size());
 
-    // accelerate search by narrowing by the first character, if we have
-    // enough prefixes to justify doing so.
-    //
-    // it'd be cool to do this recursively, like a binary tree but with 26
-    // branches. I tried this earlier in my expirementation, but the pointer
-    // hopping made it worse. Maybe after the due date i'll have time to
-    // experiment with using iterators instead of fragmenting the contiguous
-    // memory block (which is aiding the fast sort, search, writes and reads).
-    unordered_map<unsigned char,
-        std::pair<
-            std::vector<Movie>::iterator, // begin
-            std::vector<Movie>::iterator  // end
-        >
-    > search_memory;
-
-    if (prefixes.size() > 100) {
-        std::string temp = "_";
-        Movie m(temp, 0.0);
-        for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
-            temp[0] = c;
-
-            auto begin = lower_bound(
-                movies.begin(),
-                movies.end(),
-                m,
-                alphabetordering
-            );
-
-            auto end = upper_bound(
-                movies.begin(),
-                movies.end(),
-                m,
-                alphabetordering
-            );
-
-            search_memory[c] = {begin, end};
-        }
-    } else {
-        for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
-            search_memory[c] = {movies.begin(), movies.end()};
-        }
-    }
-
     for (size_t i = 0; i < prefixes.size(); i++) {
         string_view p = prefixes[i];
 
         auto begin = lower_bound(
-            // movies.begin(),
-            search_memory[p[0]].first,
-            // movies.end(),
-            search_memory[p[0]].second,
+            movies.begin(),
+            movies.end(),
             Movie(p, 0.0),
             alphabetordering
         );
@@ -281,7 +239,6 @@ the movies in ascending order is a simple in-order traversal, which takes O(n).
     locality in the late stage of the sorting process. Moreover, iteration over
     the vector also becomes very cache-friendly.
 
-    Last minute change:
     I've been working over the past two days on a large algorithmic change to
     the lexigraphic sorting in the initial phase of the data loading and
     parsing. An illustration of the algorithm is available in utilities.cpp.
