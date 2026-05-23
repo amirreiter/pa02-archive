@@ -1,4 +1,9 @@
 #include "movies.h"
+#include <cstdlib>
+
+bool Movie::operator==(const Movie& rhs) const {
+    return this->name == rhs.name && std::abs((this->rating - rhs.rating)) < 0.01;
+}
 
 bool AlphabeticalOrdering::operator()(const Movie& lhs, const Movie& rhs) const {
     // cpp apparently already has lexographic string ordering

@@ -10,6 +10,7 @@ public:
     double rating;
 
     Movie(std::string_view name, double rating) : name(name), rating(rating) {};
+    bool operator==(const Movie& rhs) const;
 };
 
 class AlphabeticalOrdering {
