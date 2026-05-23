@@ -58,11 +58,13 @@ int main(int argc, char** argv){
         read_anchor = next_newline + 1;
     }
 
-    if (movies.size() > 1000) {
-        std::sort(movies.begin(), movies.end(), alphabetordering);
-    } else {
-        lexisort_fast(movies);
-    }
+    std::sort(movies.begin(), movies.end(), alphabetordering);
+
+    // if (movies.size() > 1000) {
+    //     std::sort(movies.begin(), movies.end(), alphabetordering);
+    // } else {
+    //     lexisort_fast(movies);
+    // }
 
     std::string out;
     out.reserve(8000000);
