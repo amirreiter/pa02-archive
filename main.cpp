@@ -40,17 +40,8 @@ int main(int argc, char** argv){
     }
     // Create an object of a STL data-structure to store all the movies
     std::vector<Movie> movies;
-
     // benchmaxing
-    if (argv[1][8] == '_') {
-        movies.reserve(20);
-    } else if (argv[1][9] == '_') {
-        movies.reserve(100);
-    } else if (argv[1][10] == '_') {
-        movies.reserve(1000);
-    } else if (argv[1][11] == '_') {
-        movies.reserve(76920);
-    }
+    movies.reserve(76920);
 
     // Read each file and store the name and rating
     // updated this to be zero-copy
@@ -101,13 +92,7 @@ int main(int argc, char** argv){
     vector<string_view> prefixes;
 
     // benchmaxing
-    if (argv[2][7] == 'l') {
-        prefixes.reserve(17578);
-    } else if (argv[2][7] == 'm') {
-        prefixes.reserve(27);
-    } else if (argv[2][7] == 's') {
-        prefixes.reserve(3);
-    }
+    prefixes.reserve(17578);
 
     // updated this to be zero-copy
     read_anchor = 0;
@@ -149,49 +134,49 @@ int main(int argc, char** argv){
     // hopping made it worse. Maybe after the due date i'll have time to
     // experiment with using iterators instead of fragmenting the contiguous
     // memory block (which is aiding the fast sort, search, writes and reads).
-    // unordered_map<unsigned char,
-    //     std::pair<
-    //         std::vector<Movie>::iterator, // begin
-    //         std::vector<Movie>::iterator  // end
-    //     >
-    // > search_memory;
+    unordered_map<unsigned char,
+        std::pair<
+            std::vector<Movie>::iterator, // begin
+            std::vector<Movie>::iterator  // end
+        >
+    > search_memory;
 
-    // if (movies.size() > 100) {
-    //     std::string temp = "_";
-    //     Movie m(temp, 0.0);
-    //     for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
-    //         temp[0] = c;
+    if (prefixes.size() > 100) {
+        std::string temp = "_";
+        Movie m(temp, 0.0);
+        for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
+            temp[0] = c;
 
-    //         auto begin = lower_bound(
-    //             movies.begin(),
-    //             movies.end(),
-    //             m,
-    //             alphabetordering
-    //         );
+            auto begin = lower_bound(
+                movies.begin(),
+                movies.end(),
+                m,
+                alphabetordering
+            );
 
-    //         auto end = upper_bound(
-    //             movies.begin(),
-    //             movies.end(),
-    //             m,
-    //             alphabetordering
-    //         );
+            auto end = upper_bound(
+                movies.begin(),
+                movies.end(),
+                m,
+                alphabetordering
+            );
 
-    //         search_memory[c] = {begin, end};
-    //     }
-    // } else {
-    //     for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
-    //         search_memory[c] = {movies.begin(), movies.end()};
-    //     }
-    // }
+            search_memory[c] = {begin, end};
+        }
+    } else {
+        for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
+            search_memory[c] = {movies.begin(), movies.end()};
+        }
+    }
 
     for (size_t i = 0; i < prefixes.size(); i++) {
         string_view p = prefixes[i];
 
         auto begin = lower_bound(
-            movies.begin(),
-            // search_memory[p[0]].first,
-            movies.end(),
-            // search_memory[p[0]].second,
+            // movies.begin(),
+            search_memory[p[0]].first,
+            // movies.end(),
+            search_memory[p[0]].second,
             Movie(p, 0.0),
             alphabetordering
         );
