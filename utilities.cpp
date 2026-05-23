@@ -207,6 +207,12 @@ void lexisort_fast(
 }
 
 void lexisort_fast(std::vector<Movie>& movies) {
+    // early exit before ANY allocations, for lower sized inputs
+    if (movies.size() < 257) {
+        std::sort(movies.begin(), movies.end(), alphaordering);
+        return;
+    }
+
     size_t max_string_size = 0;
 
     for (auto& m : movies) {

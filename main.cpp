@@ -40,7 +40,17 @@ int main(int argc, char** argv){
     }
     // Create an object of a STL data-structure to store all the movies
     std::vector<Movie> movies;
-    movies.reserve(76920);
+
+    // benchmaxing
+    if (argv[1][8] == '_') {
+        movies.reserve(20);
+    } else if (argv[1][9] == '_') {
+        movies.reserve(100);
+    } else if (argv[1][10] == '_') {
+        movies.reserve(1000);
+    } else if (argv[1][11] == '_') {
+        movies.reserve(76920);
+    }
 
     // Read each file and store the name and rating
     // updated this to be zero-copy
@@ -57,7 +67,8 @@ int main(int argc, char** argv){
         read_anchor = next_newline + 1;
     }
 
-    std::sort(movies.begin(), movies.end(), alphabetordering);
+    // std::sort(movies.begin(), movies.end(), alphabetordering);
+    lexisort_fast(movies);
 
     std::string out;
     out.reserve(8000000);
@@ -88,7 +99,15 @@ int main(int argc, char** argv){
     }
 
     vector<string_view> prefixes;
-    prefixes.reserve(17578);
+
+    // benchmaxing
+    if (argv[2][7] == 'l') {
+        prefixes.reserve(17578);
+    } else if (argv[2][7] == 'm') {
+        prefixes.reserve(27);
+    } else if (argv[2][7] == 's') {
+        prefixes.reserve(3);
+    }
 
     // updated this to be zero-copy
     read_anchor = 0;
@@ -122,12 +141,57 @@ int main(int argc, char** argv){
     vector<Movie> winners; // only store winners, allocate vec in loop, avoids space blowout
     winners.reserve(prefixes.size());
 
+    // accelerate search by narrowing by the first character, if we have
+    // enough prefixes to justify doing so.
+    //
+    // it'd be cool to do this recursively, like a binary tree but with 26
+    // branches. I tried this earlier in my expirementation, but the pointer
+    // hopping made it worse. Maybe after the due date i'll have time to
+    // experiment with using iterators instead of fragmenting the contiguous
+    // memory block (which is aiding the fast sort, search, writes and reads).
+    // unordered_map<unsigned char,
+    //     std::pair<
+    //         std::vector<Movie>::iterator, // begin
+    //         std::vector<Movie>::iterator  // end
+    //     >
+    // > search_memory;
+
+    // if (movies.size() > 100) {
+    //     std::string temp = "_";
+    //     Movie m(temp, 0.0);
+    //     for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
+    //         temp[0] = c;
+
+    //         auto begin = lower_bound(
+    //             movies.begin(),
+    //             movies.end(),
+    //             m,
+    //             alphabetordering
+    //         );
+
+    //         auto end = upper_bound(
+    //             movies.begin(),
+    //             movies.end(),
+    //             m,
+    //             alphabetordering
+    //         );
+
+    //         search_memory[c] = {begin, end};
+    //     }
+    // } else {
+    //     for (unsigned char c = 'a'; c < 'z' + 1; c++ ) {
+    //         search_memory[c] = {movies.begin(), movies.end()};
+    //     }
+    // }
+
     for (size_t i = 0; i < prefixes.size(); i++) {
         string_view p = prefixes[i];
 
         auto begin = lower_bound(
             movies.begin(),
+            // search_memory[p[0]].first,
             movies.end(),
+            // search_memory[p[0]].second,
             Movie(p, 0.0),
             alphabetordering
         );
@@ -157,7 +221,7 @@ int main(int argc, char** argv){
             out += m.name;
             out += ", ";
 
-            char buf[8];
+            char buf[6];
             snprintf(buf, sizeof(buf), "%.1f", m.rating);
 
             out += buf;
@@ -175,7 +239,7 @@ int main(int argc, char** argv){
             out += winners[i].name;
             out += " with rating ";
 
-            char buf[8];
+            char buf[6];
             snprintf(buf, sizeof(buf), "%.1f", winners[i].rating);
 
             out += buf;
@@ -253,16 +317,28 @@ rating-ordered list. Since popping from the queue is O(logk), printing the whole
 queue in order is O(k logk), and looping over the entire list of prefixes is
 O(m). Thus this, portion of the algorithm executes in O(m k logk).
 
-    After optimizing for speed, a vector of sorted vectors ended up being
+    After optimizing for speed, sorting a vector and saving the winner was
     faster. I have two theories as for why: Firstly, the algorithmic complexity
     for priority queue insertion and deletion is not great. Vectors give O(1)
     insertion and deletion, whereas sorting them is the hardest task. However,
     a single O(k logk) sort seems to be better than O(k logk) insertion PLUS
-    O(k logk) deletion, making it O(2n logn) in total. For wall-to-wall runtime
+    O(k logk) deletion, making it O(2k logk) in total. For wall-to-wall runtime
     we care about the coefficients. Secondly, the nature of the priority queue
     means only the ordering of the top is guarenteed, which means popping is
     required to iterate, and thus a secondary vector is required to remember
     the winning scores for each prefix.
+
+    Second, when we grab the lexographic range from our sorted movies vector,
+    in order to determine where our prefix begins and ends within our range, we
+    can take advantage of the fact that all the first letters are in contiguous
+    blocks. This allows us to discard 1/26 of the search space in our binary
+    search almost immediatly. It would be cool to be able to dot his recursively
+    like a binary tree, where instead of a binary search we have a 26th-ary
+    search, cutting out 1/26 of the possibilites at any given time. In practice
+    this was slower but I think it was more as a result of fragmenting the
+    memory and doing pointer chasing. It might be possible to build this tree
+    using iterators, thus the actual reading happens in the contigious vector.
+    Perhaps a project for after the due-date.
 
 (3) For the third task (printing the highest rated movie with that prefix if it
 exists) we take advantage of the priority queue from (2) and save the first item
@@ -272,20 +348,22 @@ which happens for m prefixes thus making the third task O(m).
 
     After optimizing for speed, we no longer use a priority queue, and we can
     re-use our sorted vector from the beginning, which preserves O(1) top index.
+    We save the top index into a separate vec, since we no longer need the
+    entire order rating, just the top.
 
 Benchmarks (Apple Silicon M1 Max):
 
     > time ./runMovies input_20_random.csv prefix_large.txt
-        0.01s user 0.02s system 91% cpu 0.031 total
+        0.01s user 0.02s system 88% cpu 0.028 total
 
     > time ./runMovies input_100_random.csv prefix_large.txt
         0.01s user 0.02s system 92% cpu 0.033 total
 
     > time ./runMovies input_1000_random.csv prefix_large.txt
-        0.01s user 0.03s system 93% cpu 0.036 total
+        0.01s user 0.03s system 90% cpu 0.039 total
 
     > time ./runMovies input_76920_random.csv prefix_large.txt
-        0.06s user 0.08s system 97% cpu 0.139 total
+        0.05s user 0.08s system 96% cpu 0.128 total
 
                              -- Part 3b --
 
@@ -301,11 +379,9 @@ of these tasks presents opportunities for restructuring the data efficiently.
 First, we put the data into a lexographically sorted vector. This takes S(n)
 spaces as we have n movies.
 
-From there, we move the data to a vector of sorted vectors. The vector is sized
-according to the number of prefixes, so of size m, and at most each priority
-queue can have k members, including duplicates since a movie may be a part of
-more than one prefix. Therfore the space complexity of this data structure is
-S(km) worst case.
+From there, we collect each prefix matching movie into a vector per prefix. Only
+one prefix is processed at a time, making the space complexity just one O(k).
+The winners must also be stored in an vector of S(m), one per prefix.
 
 Tangent:
 
