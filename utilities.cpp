@@ -78,6 +78,7 @@ std::string read_file_to_string(const std::string& path) {
 */
 
 
+// here's my first attempt at lexisort
 static const AlphabeticalOrdering alphaordering;
 void lexisort(
     std::vector<Movie>& movies,

@@ -232,6 +232,18 @@ the movies in ascending order is a simple in-order traversal, which takes O(n).
     locality in the late stage of the sorting process. Moreover, iteration over
     the vector also becomes very cache-friendly.
 
+    Last minute change:
+    I've been working over the past two days on a large algorithmic change to
+    the lexigraphic sorting in the initial phase of the data loading and
+    parsing. An illustration of the algorithm is available in utilities.cpp.
+    The basic idea is as follows: No matter what the actual name of the movie,
+    we know that every movie that starts with an 'a' should appear before the
+    first 'b'. Then within the 'a's, we can apply a similar logic, where all the
+    'aa' movies MUST appear before the 'ab's. This logic continues recursively.
+    This is a kind of radix sort, which is significantly faster than std::sort
+    (which stackoverflow says is a kind of "introsort").
+
+
 (2) For the second task (printing the movies by prefix in descending rating
 order), I initially chose to create vector of priority queues to get the best
 performance characteristics of both ADTs. The vector gives O(1) indexing for a
