@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdio>
 #include <vector>
+#include <array>
 
 // reads a file into a giant string, by using C i/o methods
 std::string read_file_to_string(const std::string& path) {
